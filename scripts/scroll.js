@@ -1,51 +1,39 @@
 class Scroll {
   constructor() {
     this.element = document.scrollingElement
-    this.step = 70
-    this.behavior = 'smooth'
+    this.amt = 70
+    this.fastFactor = 3
     this.animation = null
   }
   down(repeat) {
-    if (this.behavior === 'smooth') {
-      this.animate(() => this.element.scrollTop += this.step / 4, repeat)
-    } else {
-      this.element.scrollBy({ top: this.step })
-    }
+    this.animate('down', this.amt, repeat)
   }
   up(repeat) {
-    if (this.behavior === 'smooth') {
-      this.animate(() => this.element.scrollTop -= this.step / 4, repeat)
-    } else {
-      this.element.scrollBy({ top: -this.step })
-    }
+    this.animate('up', this.amt, repeat)
   }
   right(repeat) {
-    if (this.behavior === 'smooth') {
-      this.animate(() => this.element.scrollLeft += this.step / 4, repeat)
-    } else {
-      this.element.scrollBy({ left: this.step })
-    }
+    this.animate('right', this.amt, repeat)
   }
   left(repeat) {
-    if (this.behavior === 'smooth') {
-      this.animate(() => this.element.scrollLeft -= this.step / 4, repeat)
-    } else {
-      this.element.scrollBy({ left: -this.step })
-    }
+    this.animate('left', this.amt, repeat)
   }
-  pageDown(percent = 0.9) {
-    this.element.scrollBy({ top: window.innerHeight * percent, behavior: this.behavior })
+  pageDown(repeat) {
+    this.animate('down', (this.amt * this.fastFactor), repeat)
   }
-  pageUp(percent = 0.9) {
-    this.element.scrollBy({ top: -window.innerHeight * percent, behavior: this.behavior })
+  pageUp(repeat) {
+    this.animate('up', (this.amt * this.fastFactor), repeat)
   }
-  // Force instant scroll to top / bottom
-  // Reason: The smooth scrolling is too slow on Chrome.
   top() {
-    this.element.scrollTo({ top: 0, behavior: 'auto' })
+    this.animate('up', this.element.scrollTop)
   }
   bottom() {
-    this.element.scrollTo({ top: this.element.scrollHeight, behavior: 'auto' })
+    this.animate('down', this.element.scrollHeight - this.element.scrollTop)
+  }
+  static directions = {
+    down:  { key: 'scrollTop', signum: 1 },
+    up:    { key: 'scrollTop', signum: -1 },
+    left:  { key: 'scrollLeft', signum: -1 },
+    right: { key: 'scrollLeft', signum: 1 },
   }
   // Saka Key – https://key.saka.io
   //
@@ -71,18 +59,24 @@ class Scroll {
   // – I tried a timeout based solution.
   //
   // https://github.com/lusakasa/saka-key/blob/master/notes/engineering.md
-  animate(animation, repeat) {
+  animate(dir, amt, repeat) {
+    const { key, signum } = Scroll.directions[dir];
+    const longThrow = amt > window.innerHeight;
+    const friction = longThrow
+      ? Math.log(Math.pow(amt,2))
+      : Math.log(amt);
+    const animation = () => this.element[key] += (amt / friction) * signum;
     // Cancel potential animation being proceeded
     cancelAnimationFrame(this.animation)
     let start = null
-    const delay = repeat ? 70 : 700
+    const delay = repeat ? (amt - friction) : (amt / 0.14) - friction
     const step = (timeStamp) => {
       if (start === null) {
         start = timeStamp
       }
       const progress = timeStamp - start
       animation()
-      if (progress < delay) {
+      if (progress <= delay) {
         this.animation = requestAnimationFrame(step)
       } else {
         this.animation = null
@@ -90,14 +84,11 @@ class Scroll {
     }
     requestAnimationFrame(step)
     // End smooth scrolling animation on key-up.
-    const onKeyUp = (event) => {
+    const onKeyUp = (_event) => {
       cancelAnimationFrame(this.animation)
     }
-    const once = {
-      once: true
-    }
-    if (! repeat) {
-      this.element.addEventListener('keyup', onKeyUp, once)
+    if (! (repeat || longThrow) ) {
+      this.element.addEventListener('keyup', onKeyUp, { once: true })
     }
   }
 }
