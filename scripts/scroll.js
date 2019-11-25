@@ -69,14 +69,14 @@ class Scroll {
     // Cancel potential animation being proceeded
     cancelAnimationFrame(this.animation)
     let start = null
-    const delay = repeat ? (amt - friction) : (amt / 0.14) - friction
+    const delay = repeat ? amt : (amt / 0.14)
     const step = (timeStamp) => {
       if (start === null) {
         start = timeStamp
       }
       const progress = timeStamp - start
       animation()
-      if (progress <= delay) {
+      if (progress < delay) {
         this.animation = requestAnimationFrame(step)
       } else {
         this.animation = null
